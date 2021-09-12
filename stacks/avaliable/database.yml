@@ -1,0 +1,73 @@
+version: "3.7"
+# STACK FOR DATABASES
+
+########################### NETWORKS
+# Define as EXTERNAL
+
+networks:
+  t2_proxy:
+    external: true
+  socket_proxy:
+    external: true
+
+########################### SECRETS
+secrets:
+  mysql_root_password:
+    file: $SECRETSDIR/mysql_root_password
+  
+########################### SERVICES
+services:
+  ############################# DATABASE
+
+  # MariaDB - MySQL Database
+  # After starting container for first time dexec and mysqladmin -u root password <password>
+  mariadb:
+    container_name: mariadb
+    image: linuxserver/mariadb:latest
+    restart: always
+    networks:
+      - t2_proxy
+    security_opt:
+      - no-new-privileges:true
+    ports:
+      - "$MARIADB_PORT:3306"
+    volumes:
+      - $DOCKERDIR/appdata/mariadb/data:/config
+    environment:
+      - PUID=$PUID
+      - PGID=$PGID
+      - TZ=$TZ
+      - FILE__MYSQL_ROOT_PASSWORD=/run/secrets/mysql_root_password # Note FILE__ (double underscore) - Issue #127
+    secrets:
+      - mysql_root_password
+
+  influxdb:
+    restart: always
+    image: influxdb:1.8
+    ports:
+      - '8086:8086'
+    networks:
+      - t2_proxy
+    volumes:
+      - $DOCKERDIR/appdata/influxdb:/var/lib/influxdb
+    environment:
+      - INFLUXDB_DB=${UNI_INFLUXDB_DB}
+      - INFLUXDB_HTTP_AUTH_ENABLED=${UNI_INFLUXDB_HTTP_AUTH_ENABLED}
+      - INFLUXDB_ADMIN_USER=${UNI_INFLUXDB_ADMIN_USER}
+      - INFLUXDB_ADMIN_PASSWORD=${UNI_INFLUXDB_ADMIN_PASSWORD}
+
+  chronograf:
+    image: chronograf:latest
+    restart: always
+    ports:
+      - '7777:8888'
+    networks:
+      - t2_proxy
+    volumes:
+      - $DOCKERDIR/appdata/chronograf:/var/lib/chronograf
+    depends_on:
+      - influxdb
+    environment:
+      - INFLUXDB_URL=http://influxdb:8086
+      - INFLUXDB_USERNAME=${UNI_INFLUXDB_ADMIN_USER}
+      - INFLUXDB_PASSWORD=${UNI_INFLUXDB_ADMIN_PASSWORD}

@@ -1,0 +1,101 @@
+version: "3.7"
+# STACK FOR NEXTCLOUD
+
+########################### NETWORKS
+# Define as EXTERNAL
+
+networks:
+  nextcloud:
+    external: false
+  t2_proxy:
+    external: true
+  default:
+    external: true
+  socket_proxy:
+    external: true
+
+########################### SECRETS
+secrets:
+ nc_db_password:
+    file: $SECRETSDIR/nc_db_password
+ nc_db_root_password:
+    file: $SECRETSDIR/nc_db_root_password
+
+
+########################### SERVICES
+services:
+
+  # NextCloud
+  nextcloud:
+    image: nextcloud:21
+    container_name: nextcloud
+    hostname: nextcloud
+    restart: unless-stopped
+    networks:
+      nextcloud:
+      t2_proxy:
+        ipv4_address: 192.168.90.190
+    volumes:
+      - $DOCKERDIR/appdata/nexcloud:/var/www/html
+      - $DATADIR:/local/pool
+      - $GDRIVEDATADIR:/local/gdrive
+      - $GSECUREDRIVE:/local/gsecure
+    environment:
+     NEXTCLOUD_TRUSTED_DOMAIN: $NEXTCLOUD_DOMAIN_NAME
+     REDIS_HOST: nc-redis
+     ### Add local network as a trusted proxy 
+     ### Given the range allocated to docker connections as per the stack
+     TRUSTED_PROXIES: 192.168.90.0/24
+    labels:
+      - "traefik.enable=true"
+    ## HTTP Routers Local
+      - "traefik.http.routers.nextcloud-rtr-local.entrypoints=https"
+      - "traefik.http.routers.nextcloud-rtr-local.rule=Host(`cloud.$LOCALDOMAIN`)"
+      - "traefik.http.routers.nextcloud-rtr-local.tls=true"
+      ## HTTP Routers
+      - "traefik.http.routers.nextcloud-rtr.entrypoints=https"
+      - "traefik.http.routers.nextcloud-rtr.rule=Host(`cloud.$DOMAINNAME`)"
+      ## Middlewares
+      - "traefik.http.routers.nextcloud-rtr.middlewares=chain-nextcloud@file"
+      ## HTTP Services
+      - "traefik.http.routers.nextcloud-rtr.service=nextcloud-svc"
+      - "traefik.http.services.nextcloud-svc.loadbalancer.server.port=80"
+      ## HTTP Services - Local
+      - "traefik.http.routers.nextcloud-rtr-local.service=nextcloud-svc-local"
+      - "traefik.http.services.nextcloud-svc-local.loadbalancer.server.port=80"
+  
+  # Give Nextcloud its own docker database container
+  # Mount the DB Dir to the appdata so this gets backed up
+  nextcloud-db:
+    image: mariadb:10.5 # Locked in to stop breaking - MaraiaDB breaks on Latest
+    container_name: nc_db
+    hostname: nc-db
+    restart: unless-stopped
+    command: --transaction-isolation=READ-COMMITTED --log-bin=msqyld-bin --binlog-format=ROW
+    networks:
+     - nextcloud # we only want to expose this container internally to nextcloud
+    volumes:
+     - $DOCKERDIR/appdata/nc-mariadb:/var/lib/mysql
+    secrets:
+     - nc_db_password
+     - nc_db_root_password
+    environment:
+     MYSQL_USER: nextcloud
+     MYSQL_DATABASE: nextcloud
+     MYSQL_ROOT_PASSWORD: /run/secrets/nc_db_root_password
+     MYSQL_PASSWORD_FILE: /run/secrets/nc_db_password
+
+  # Nextcloud Reddis
+  # Redis Because Why not
+  # Speed up Nextcloud by reducing the time spent looking "things/items" 
+  nextcloud-redis:
+    image: redis:6.2-alpine
+    container_name: nc_redis
+    hostname: nc-redis
+    restart: unless-stopped
+    networks:
+     - nextcloud # Again as above lets not let any other container connect to this or espose to internet
+    volumes:
+     - $DOCKERDIR/appdata/nc-redis:/data
+
+

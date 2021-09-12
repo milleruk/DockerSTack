@@ -1,0 +1,206 @@
+version: "3.7"
+# STACK FOR PVRS
+
+########################### NETWORKS
+# Define as EXTERNAL
+
+networks:
+  t2_proxy:
+    external: true
+  default:
+    external: true
+  socket_proxy:
+    external: true
+
+########################### SERVICES
+services:
+  ############################# PVRS
+
+# Sonarr - TV Shows management
+  # Set url_base in sonarr settings if using PathPrefix
+  sonarr:
+    image: linuxserver/sonarr:latest
+    container_name: sonarr
+    restart: "no"
+    networks:
+      t2_proxy:
+        ipv4_address: 192.168.90.167
+    security_opt:
+      - no-new-privileges:true
+    # ports:
+    #  - "$SONARR_PORT:8989"
+    volumes:
+      - $DOCKERDIR/config/sonarr:/config
+      - $SSDDATADIR/docker/appdata/sonarr/MediaCover:/config/MediaCover
+      - $DATADIR/downloads/downloads:/data/downloads
+      - $DATADIR/TVShows:/data/media
+      - $GSECUREDRIVE/TVShows:/data/gsecure
+      - "/etc/localtime:/etc/localtime:ro"
+    environment:
+      PUID: 0
+      PGID: 0
+      TZ: $TZ
+    labels:
+      - "traefik.enable=true"
+      ## HTTP Routers Local
+      - "traefik.http.routers.sonarr-rtr-local.entrypoints=https"
+      - "traefik.http.routers.sonarr-rtr-local.rule=Host(`sonarr.$LOCALDOMAIN`)"
+      - "traefik.http.routers.sonarr-rtr-local.tls=true"
+      ## HTTP Routers Auth Bypass
+      - "traefik.http.routers.sonarr-rtr-bypass.entrypoints=https"
+      - "traefik.http.routers.sonarr-rtr-bypass.rule=Host(`sonarr.$DOMAINNAME`) && (Headers(`X-Api-Key`, `$SONARR_API_KEY`) || Query(`apikey`, `$SONARR_API_KEY`))"
+      - "traefik.http.routers.sonarr-rtr-bypass.priority=100"
+      ## HTTP Routers Auth
+      - "traefik.http.routers.sonarr-rtr.entrypoints=https"
+      - "traefik.http.routers.sonarr-rtr.rule=Host(`sonarr.$DOMAINNAME`)"
+      - "traefik.http.routers.sonarr-rtr.priority=99"
+      ## Middlewares
+      - "traefik.http.routers.sonarr-rtr-bypass.middlewares=chain-no-auth@file"
+      - "traefik.http.routers.sonarr-rtr.middlewares=chain-authelia@file"
+      ## HTTP Services
+      - "traefik.http.routers.sonarr-rtr.service=sonarr-svc"
+      - "traefik.http.routers.sonarr-rtr-bypass.service=sonarr-svc"
+      - "traefik.http.routers.sonarr-rtr-local.service=sonarr-svc-local"
+      - "traefik.http.services.sonarr-svc.loadbalancer.server.port=8989"
+      - "traefik.http.services.sonarr-svc-local.loadbalancer.server.port=8989"
+
+  # Radarr - Movie management
+  # Set url_base in radarr settings if using PathPrefix
+  radarr:
+    image: linuxserver/radarr:latest
+    container_name: radarr
+    restart: "no"
+    networks:
+      t2_proxy:
+        ipv4_address: 192.168.90.164
+    security_opt:
+      - no-new-privileges:true
+    # ports:
+    #  - "$RADARR_PORT:7878"
+    volumes:
+      - $DOCKERDIR/config/radarr:/config
+      - $DATADIR/docker/appdata/radarr/MediaCover:/config/MediaCover
+      - $DATADIR/downloads/downloads:/data/downloads
+      - $DATADIR/Movies:/data/media
+      - $GSECUREDRIVE/Movies:/data/gsecure
+      #- $GDRIVEDATADIR/movies:/data/gdrive/media
+      - "/etc/localtime:/etc/localtime:ro"
+    environment:
+      PUID: 0
+      PGID: 0
+      TZ: $TZ
+    labels:
+      - "traefik.enable=true"
+      ## HTTP Routers Local
+      - "traefik.http.routers.radarr-rtr-local.entrypoints=https"
+      - "traefik.http.routers.radarr-rtr-local.rule=Host(`radarr.$LOCALDOMAIN`)"
+      - "traefik.http.routers.radarr-rtr-local.tls=true"
+      ## HTTP Routers Auth Bypass
+      - "traefik.http.routers.radarr-rtr-bypass.entrypoints=https"
+      - "traefik.http.routers.radarr-rtr-bypass.rule=Host(`radarr.$DOMAINNAME`) && (Headers(`X-Api-Key`, `$RADARR_API_KEY`) || Query(`apikey`, `$RADARR_API_KEY`))"
+      - "traefik.http.routers.radarr-rtr-bypass.priority=100"
+      ## HTTP Routers Auth
+      - "traefik.http.routers.radarr-rtr.entrypoints=https"
+      - "traefik.http.routers.radarr-rtr.rule=Host(`radarr.$DOMAINNAME`)"
+      - "traefik.http.routers.radarr-rtr.priority=99"
+      ## Middlewares
+      - "traefik.http.routers.radarr-rtr-bypass.middlewares=chain-no-auth@file"
+      - "traefik.http.routers.radarr-rtr.middlewares=chain-authelia@file"
+      ## HTTP Services
+      - "traefik.http.routers.radarr-rtr.service=radarr-svc"
+      - "traefik.http.routers.radarr-rtr-bypass.service=radarr-svc"
+      - "traefik.http.routers.radarr-rtr-local.service=radarr-svc-local"
+      - "traefik.http.services.radarr-svc.loadbalancer.server.port=7878"
+      - "traefik.http.services.radarr-svc-local.loadbalancer.server.port=7878"
+
+# Trackarr - Tracker IRC Clients in a nutshell
+  trackarr:
+    image: hotio/trackarr:latest
+    container_name: trackarr
+    restart: "no"
+    networks:
+      t2_proxy:
+        ipv4_address: 192.168.90.165
+    security_opt:
+      - no-new-privileges:true
+    # ports:
+    #  - "$TRACKARR_PORT:8989"
+    volumes:
+      - $DOCKERDIR/config/trackarr:/config
+      - "/etc/localtime:/etc/localtime:ro"
+    environment:
+      PUID: $PUID
+      PGID: $PGID
+      TZ: $TZ
+    labels:
+    labels:
+      - "traefik.enable=true"
+      ## HTTP Routers
+      - "traefik.http.routers.trackarr-rtr.entrypoints=https"
+      - "traefik.http.routers.trackarr-rtr.rule=Host(`trackarr.$DOMAINNAME`)"
+      - "traefik.http.routers.trackarr-rtr.tls=true"
+      - "traefik.http.routers.trackarr-rtr-local.entrypoints=https"
+      - "traefik.http.routers.trackarr-rtr-local.rule=Host(`trackarr.$LOCALDOMAIN`)"
+      - "traefik.http.routers.trackarr-rtr-local.tls=true"
+      ## Middlewares
+      - "traefik.http.routers.trackarr-rtr.middlewares=chain-authelia@file"
+      ## HTTP Services
+      - "traefik.http.routers.trackarr-rtr.service=trackarr-svc"
+      - "traefik.http.routers.trackarr-rtr-local.service=trackarr-svc-local"
+      - "traefik.http.services.trackarr-svc.loadbalancer.server.port=7337"
+      - "traefik.http.services.trackarr-svc-local.loadbalancer.server.port=7337"
+          
+# Jackett
+  jackett:
+    image: linuxserver/jackett:latest
+    container_name: jackett
+    restart: unless-stopped
+    network_mode: "container:vpn"
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - $DOCKERDIR/config/jackett:/config
+      - "/etc/localtime:/etc/localtime:ro"
+    environment:
+      PUID: $PUID
+      PGID: $PGID
+      TZ: $TZ
+    labels:
+      - "traefik.enable=true"
+      ## HTTP Routers
+      - "traefik.http.routers.jackett-rtr.entrypoints=https"
+      - "traefik.http.routers.jackett-rtr.rule=Host(`jackett.$DOMAINNAME`)"
+      - "traefik.http.routers.jackett-rtr.tls=true"
+      ## Middlewares
+      - "traefik.http.routers.jackett-rtr.middlewares=chain-authelia@file"
+      ## HTTP Services
+      - "traefik.http.routers.jackett-rtr.service=jackett-svc"
+      - "traefik.http.services.jackett-svc.loadbalancer.server.port=9117"
+
+  mygaps:
+    image: housewrecker/gaps:latest
+    container_name: mygaps
+    restart: "no"
+    networks:
+      t2_proxy:
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - $DOCKERDIR/data/mygaps:/usr/data
+      - "/etc/localtime:/etc/localtime:ro"
+    environment:
+      PUID: $PUID
+      PGID: $PGID
+      TZ: $TZ
+      UMASK: 002
+      #ARGS: ""
+    labels:
+      - "traefik.enable=true"
+      ## HTTP Routers Auth
+      - "traefik.http.routers.mygaps-rtr.entrypoints=https"
+      - "traefik.http.routers.mygaps-rtr.rule=Host(`mygaps.$DOMAINNAME`)"
+      ## Middlewares
+      - "traefik.http.routers.mygaps-rtr.middlewares=chain-authelia@file"
+      ## HTTP Services
+      - "traefik.http.routers.mygaps-rtr.service=mygaps-svc"
+      - "traefik.http.services.mygaps-svc.loadbalancer.server.port=8484"

@@ -1,0 +1,24 @@
+version: "3.7"
+
+secrets: 
+  my_adguard_pass:
+    file: $SECRETSDIR/my_adguard_pass
+
+services:
+  adguard_exporter:
+    image: ebrianne/adguard-exporter
+    restart: always
+    secrets:
+      - my_adguard_pass
+    ports:
+      - target: 9617
+        published: 9617
+        protocol: tcp
+        mode: host
+    environment:
+      - adguard_protocol=http
+      - adguard_hostname=10.0.0.113
+      - adguard_username=admin
+      - adguard_password=/run/secrets/my_adguard_pass
+      - interval=10s
+      - log_limit=10000

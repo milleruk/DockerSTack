@@ -1,0 +1,44 @@
+version: "3.7"
+# STACK FOR VARKEN
+
+########################### NETWORKS
+# Define as EXTERNAL
+
+networks:
+  t2_proxy:
+    external: true
+  socket_proxy:
+    external: true
+
+########################### SERVICES
+services:
+  ############################# DATABASE
+
+  var_influxdb:
+    restart: always
+    hostname: var_influxdb
+    image: influxdb:1.8
+    container_name: var_influxdb
+    ports:
+      - '8087:8086'
+    networks:
+      - t2_proxy
+    volumes:
+      - $DOCKERDIR/appdata/varinfluxdb:/var/lib/influxdb
+    environment:
+      - INFLUXDB_DB=${VAR_INFLUXDB_DB}
+      - INFLUXDB_HTTP_AUTH_ENABLED=${VAR_INFLUXDB_HTTP_AUTH_ENABLED}
+      - INFLUXDB_ADMIN_USER=${VAR_INFLUXDB_ADMIN_USER}
+      - INFLUXDB_ADMIN_PASSWORD=${VAR_INFLUXDB_ADMIN_PASSWORD}
+
+  varken:
+    hostname: varken
+    container_name: varken
+    image: boerderij/varken
+    networks:
+      - t2_proxy
+    volumes:
+      - $DOCKERDIR/appdata/varken:/config
+    depends_on:
+      - var_influxdb
+    restart: unless-stopped

@@ -1,0 +1,51 @@
+version: "3.7"
+# STACK FOR VPN
+
+########################### NETWORKS
+# Define as EXTERNAL
+
+networks:
+  t2_proxy:
+    external: true
+  default:
+    external: true
+  socket_proxy:
+    external: true
+
+########################### SECRETS
+secrets:
+  openvpn_user:
+    file: $SECRETSDIR/openvpn_user
+  openvpn_password:
+    file: $SECRETSDIR/openvpn_password
+
+########################### SERVICES
+services:
+  gluetun:
+    image: qmcgaw/gluetun
+    restart: unless-stopped
+    container_name: vpn
+    cap_add:
+      - NET_ADMIN
+    network_mode: bridge
+    ports:
+      - 8888:8888/tcp # HTTP proxy
+      - 8388:8388/tcp # Shadowsocks
+      - 8388:8388/udp # Shadowsocks
+      - 8000:8000/tcp # Built-in HTTP control server
+      - 9117:9117/tcp # jackett
+      - 9117:9117/udp
+      - 34400:34400/tcp # xteve
+      - 34400:34400/udp
+    # command:
+    volumes:
+      - $DOCKERDIR/appdata/:/gluetun
+    secrets:
+      - openvpn_user
+      - openvpn_password
+    environment:
+      # More variables are available, see the readme table
+      - VPNSP=private internet access
+      # Timezone for accurate logs times
+      - TZ=
+    restart: always

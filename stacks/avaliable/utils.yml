@@ -1,0 +1,159 @@
+version: "3.7"
+# STACK FOR UTILITIES
+
+########################### NETWORKS
+# Define as EXTERNAL
+
+networks:
+  t2_proxy:
+    external: true
+  default:
+    external: true
+  socket_proxy:
+    external: true
+  
+########################### SERVICES
+services:
+  ############################# MAINTENANCE
+
+  # Traefik Certs Dumper - Extract LetsEncrypt Certificates - Traefik2 Compatible
+  certdumper:
+    container_name: traefik_certdumper
+    image: humenius/traefik-certs-dumper:latest
+    network_mode: none
+    security_opt:
+      - no-new-privileges:true
+    # command: --restart-containers container1,container2,container3
+    volumes:
+      - $DOCKERDIR/appdata/traefik2/acme:/traefik:ro
+      - $DOCKERDIR/shared/certs:/output:rw
+      # - /var/run/docker.sock:/var/run/docker.sock:ro # Only needed if restarting containers (use Docker Socket Proxy instead)
+    environment:
+      DOMAIN: $DOMAINNAME
+
+  # Dozzle - Real-time Docker Log Viewer
+  dozzle:
+    image: amir20/dozzle:latest
+    container_name: dozzle
+    restart: unless-stopped
+    networks:
+      - t2_proxy
+      - socket_proxy
+    security_opt:
+      - no-new-privileges:true
+    # ports:
+    #   - "$DOZZLE_PORT:8080"
+    environment:
+      DOZZLE_LEVEL: info
+      DOZZLE_TAILSIZE: 300
+      DOZZLE_FILTER: "status=running"
+      # DOZZLE_FILTER: "label=log_me" # limits logs displayed to containers with this label
+      DOCKER_HOST: tcp://socket-proxy:2375
+    # volumes:
+    #  - /var/run/docker.sock:/var/run/docker.sock # Use Docker Socket Proxy instead for improved security
+    labels:
+      - "traefik.enable=true"
+      ## HTTP Routers
+      - "traefik.http.routers.dozzle-rtr.entrypoints=https"
+      - "traefik.http.routers.dozzle-rtr.rule=Host(`dozzle.$DOMAINNAME`)"
+      ## Middlewares
+      - "traefik.http.routers.dozzle-rtr.middlewares=chain-authelia@file"
+      ## HTTP Services
+      - "traefik.http.routers.dozzle-rtr.service=dozzle-svc"
+      - "traefik.http.services.dozzle-svc.loadbalancer.server.port=8080"
+
+
+  # Docker-GC - Automatic Docker Garbage Collection
+  # Create docker-gc-exclude file
+  dockergc:
+    image: clockworksoul/docker-gc-cron:latest
+    container_name: docker-gc
+    restart: unless-stopped
+    networks:
+      - socket_proxy
+    environment:
+      CRON: 0 0 0 * * ? # Everyday at midnight. Previously 0 0 * * *
+      FORCE_IMAGE_REMOVAL: 1
+      FORCE_CONTAINER_REMOVAL: 0
+      GRACE_PERIOD_SECONDS: 604800
+      DRY_RUN: 0
+      CLEAN_UP_VOLUMES: 1
+      TZ: $TZ
+      DOCKER_HOST: tcp://socket-proxy:2375
+
+  unifi-poller:
+    restart: always
+    image: golift/unifi-poller:${POLLER_TAG}
+    networks:
+      - t2_proxy
+    environment:
+      - UP_INFLUXDB_DB=${UNI_INFLUXDB_DB}
+      - UP_INFLUXDB_USER=${UNI_INFLUXDB_ADMIN_USER}
+      - UP_INFLUXDB_PASS=${UNI_INFLUXDB_ADMIN_PASSWORD}
+      - UP_INFLUXDB_URL=http://influxdb:8086
+      - UP_UNIFI_DEFAULT_USER=${UNIFI_USER}
+      - UP_UNIFI_DEFAULT_PASS=${UNIFI_PASS}
+      - UP_UNIFI_DEFAULT_URL=${UNIFI_URL}
+      - UP_POLLER_DEBUG=${POLLER_DEBUG}
+      - UP_UNIFI_DEFAULT_SAVE_DPI=${POLLER_SAVE_DPI}
+
+
+  organizr:
+    container_name: organizr
+    image: organizr/organizr:latest
+    restart: unless-stopped
+    networks:
+      - t2_proxy
+    security_opt:
+      - no-new-privileges:true
+    # ports:
+    #   - "$ORGANIZR_PORT:80"
+    volumes:
+      - $DOCKERDIR/appdata/organizr:/config
+    environment:
+      - PUID=$PUID
+      - PGID=$PGID
+      - TZ=$TZ
+      - fpm=true
+    labels:
+      - "traefik.enable=true"
+      ## HTTP Routers
+      - "traefik.http.routers.organizr-rtr.entrypoints=https"
+      - "traefik.http.routers.organizr-rtr.rule=Host(`$DOMAINNAME`) || Host(`www.$DOMAINNAME`)"
+
+      ## Middlewares
+      - "traefik.http.routers.organizr-rtr.middlewares=organizr-redirect@docker"
+        # Redirect non-www to www middleware
+      - "traefik.http.middlewares.organizr-redirect.redirectregex.regex=^https?://$DOMAINNAME/(.*)"
+      - "traefik.http.middlewares.organizr-redirect.redirectregex.replacement=https://www.$DOMAINNAME/$${1}"
+      - "traefik.http.middlewares.organizr-redirect.redirectregex.permanent=true"
+      ## HTTP Services
+      - "traefik.http.routers.organizr-rtr.service=organizr-svc"
+      - "traefik.http.services.organizr-svc.loadbalancer.server.port=80"
+  
+  #https://duplicacy.com/home.html
+  duplicacy:
+    container_name: duplicacy
+    image: hotio/duplicacy
+    restart: unless-stopped
+    networks:
+      - t2_proxy
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - $DOCKERDIR/appdata/duplicacy:/config
+    environment:
+      - PUID=$PUID
+      - PGID=$PGID
+      - TZ=$TZ
+    labels:
+      - "traefik.enable=true"
+      ## HTTP Routers
+      - "traefik.http.routers.duplicacy-rtr.entrypoints=https"
+      - "traefik.http.routers.duplicacy-rtr.rule=Host(`duplicacy.$DOMAINNAME`)"
+      - "traefik.http.routers.duplicacy-rtr.tls=true"
+      ## Middlewares
+      - "traefik.http.routers.duplicacy-rtr.middlewares=chain-authelia@file"
+      ## HTTP Services
+      - "traefik.http.routers.duplicacy-rtr.service=duplicacy-svc"
+      - "traefik.http.services.duplicacy-svc.loadbalancer.server.port=3875"
