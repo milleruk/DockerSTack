@@ -5,7 +5,8 @@ data/*
 logs/*
 
 # Ignore enabled stacks config
-stacks/enabled/.env
+stacks/enabled/*
+!stacks/enabled/.env.sample
 
 # Ignore certs directory since it's automatically kept up to date by extracting certs from traefik
 config/certs/*
