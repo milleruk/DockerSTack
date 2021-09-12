@@ -56,10 +56,11 @@ listServices:
 	@diff -q stacks/available stacks/enabled | grep -v base.yml || echo "All services enabled" && exit 0
 
 enableService:
-	@read -p "Please input service name: " serviceName \
+	@read -p "Please input Stack name: " serviceName \
 	&& /bin/sh -c "ln -s $(PWD)/stacks/available/$${serviceName}.yml stacks/enabled/"
 
 disableService:
-	@read -p "Please input service name: " serviceName \
-	&& /bin/sh -c "rm $(PWD)/stacks/enabled/$${serviceName}.yml" \
-	&& /bin/sh -c "docker-compose -f $(PWD)/stacks/available/$${serviceName}.yml down"
+	@read -p "Please input Stack name: " serviceName \
+	&& /bin/sh -c "docker-compose -f $(PWD)/stacks/available/$${serviceName}.yml down" \
+	&& /bin/sh -c "rm $(PWD)/stacks/enabled/$${serviceName}.yml" 
+	
