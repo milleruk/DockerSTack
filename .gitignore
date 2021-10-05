@@ -1,9 +1,18 @@
 secrets/*
 !secrets/autheliaJwtSecret.placeholder
+!secrets/autheliaSessionSecret.placeholder
+!secrets/cloudflareApiKey.placeholder
+!secrets/cloudflareApiToken.placeholder
+!secrets/cloudflareEmail.placeholder
+!secrets/eMail.placeholder
+!secrets/htpasswd.placeholder
+!secrets/traefikPilotToken.placeholder
 .env
 
 data/*
+!data/folder.placeholder
 logs/*
+!logs/folder.placeholder
 
 # Ignore enabled stacks config
 stacks/enabled/*

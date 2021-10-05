@@ -5,6 +5,7 @@
 - Make
 - Docker Compose
 - Docker
+- apache2-utils (Used for htpasswd)
 
 # Initial setup
 
