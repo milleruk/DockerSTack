@@ -34,11 +34,14 @@ Password hash: $argon2id$v=19$m=65536,t=1,p=8$b3h1YUZpdEZqTEpJdEJybQ$d0XKr6LgolQ
 
 # Sample files
 There are sample files located at:
-- `/config/traefik/rules/middlewares.sample.yml`
 - `/data/authelia/configuration.sample.yml`
 - `/data/authelia/users_database.sample.yml`
 
 All of these needs to be copied to the same folder, with the same name minus `.sample` - after that edit them and replace domain, email, username etc.
+
+- `/config/traefik/sampleRules/middlewares.sample.yml`
+
+Needs moving into `rules` folder and edit them and replace domain with required domain
 
 # Enabling Services
 
