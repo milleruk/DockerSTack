@@ -56,11 +56,11 @@ Todo..... (if you under stand 'Make' you can get the gist of this)
 
 ## List Of IPs for Dockers
 
-192.168.90.254 - Traefik
-192.168.91.254 - DockerProxy
-192.168.90.167 - Sonarr
-192.168.90.164 - Radarr
-192.168.90.165 - Trackarr
+- 192.168.90.254 - Traefik
+- 192.168.91.254 - DockerProxy
+- 192.168.90.167 - Sonarr
+- 192.168.90.164 - Radarr
+- 192.168.90.165 - Trackarr
 
 ## Jackett
 
