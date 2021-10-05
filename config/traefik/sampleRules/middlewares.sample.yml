@@ -3,7 +3,7 @@ http:
     middlewares-basic-auth:
       basicAuth:
         users:
-          - "karbowiak"
+          - "<REPLACEME>"
         #usersFile: "/shared/.htpasswd" #be sure to mount the volume through docker-compose.yml
         realm: "Traefik 2 Basic Auth"
 
@@ -27,7 +27,7 @@ http:
         stsPreload: true
         forceSTSHeader: true
         # frameDeny: true #overwritten by customFrameOptionsValue
-        customFrameOptionsValue: "allow-from https:DOMAIN" #CSP takes care of this but may be needed for organizr.
+        customFrameOptionsValue: "allow-from https:<REPLACEME>" #CSP takes care of this but may be needed for organizr.
         contentTypeNosniff: true
         browserXssFilter: true
         # sslForceHost: true # add sslHost to all of the services
@@ -43,7 +43,7 @@ http:
 
     middlewares-authelia:
       forwardAuth:
-        address: "http://authelia:9091/api/verify?rd=https://REPLACEME"
+        address: "http://authelia:9091/api/verify?rd=https://<REPLACEME>"
         trustForwardHeader: true
         authResponseHeaders:
           - "Remote-User"
